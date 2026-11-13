@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<title>NexaMind AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding-bottom: 70px; }
+  header { padding: 16px; background: #1e293b; font-size: 20px; font-weight: bold; }
+  header span { color: #38bdf8; }
+  main { padding: 16px; }
+  .ecran { display: none; }
+  .ecran.actif { display: block; }
+  h2 { margin-bottom: 12px; font-size: 18px; }
+  .carte { background: #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .carte p { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+  .bouton { display: block; width: 100%; padding: 14px; border: 0; border-radius: 10px; background: #38bdf8; color: #0f172a; font-size: 16px; font-weight: bold; margin-top: 8px; }
+  .etiquette { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+  .gratuit { background: #166534; color: #bbf7d0; }
+  .credits { background: #854d0e; color: #fef08a; }
+  select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 15px; margin-bottom: 8px; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #1e293b; border-top: 1px solid #334155; }
+  nav button { flex: 1; padding: 12px 4px; border: 0; background: none; color: #94a3b8; font-size: 12px; }
+  nav button.actif { color: #38bdf8; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<header>Nexa<span>Mind</span> AI</header>
+
+<main>
+
+  <section id="accueil" class="ecran actif">
+    <h2>Bienvenue</h2>
+    <div class="carte">
+      <strong>Change d'IA sans perdre ton travail</strong>
+      <p>Ton projet, tes fichiers et tes instructions restent dans la mémoire centrale.</p>
+    </div>
+    <button class="bouton" onclick="aller('chat')">Nouvelle conversation</button>
+  </section>
+
+  <section id="chat" class="ecran">
+    <h2>Nouvelle conversation</h2>
+    <select id="mode">
+      <option>Mode automatique</option>
+      <option>Choix manuel</option>
+    </select>
+    <select id="modele">
+      <option>Claude (crédits)</option>
+      <option>DeepSeek (crédits)</option>
+      <option>Gemini (gratuit, limité)</option>
+      <option>Grok (crédits)</option>
+      <option>ChatGPT (crédits)</option>
+    </select>
+    <textarea rows="5" placeholder="Écris ton message ici..."></textarea>
+    <button class="bouton" onclick="alert('Pas encore connecté : étape 4.')">Envoyer</button>
+  </section>
+
+  <section id="projets" class="ecran">
+    <h2>Mes projets</h2>
+    <div class="carte">
+      <strong>Exemple de projet</strong>
+      <p>Dernière IA : Gemini</p>
+      <p>Terminé : écran d'accueil</p>
+      <p>Prochaine tâche : connexion Firebase</p>
+      <button class="bouton" onclick="alert('Pas encore connecté : étape 6.')">Reprendre le travail</button>
+    </div>
+  </section>
+
+  <section id="memoire" class="ecran">
+    <h2>Mémoire des projets</h2>
+    <div class="carte"><strong>Permanente</strong><p>Objectifs, instructions, décisions</p></div>
+    <div class="carte"><strong>Projet</strong><p>Fichiers, technologies, progression</p></div>
+    <div class="carte"><strong>Récente</strong><p>Derniers échanges utiles</p></div>
+    <div class="carte"><strong>État de travail</strong><p>Dernière tâche, prochaine action</p></div>
+  </section>
+
+  <section id="reglages" class="ecran">
+    <h2>Réglages</h2>
+    <div class="carte">
+      <strong>Langue</strong>
+      <select><option>Français</option><option>English</option></select>
+    </div>
+    <div class="carte">
+      <strong>Fournisseurs d'IA</strong>
+      <p>Claude <span class="etiquette credits">crédits</span></p>
+      <p>DeepSeek <span class="etiquette credits">crédits</span></p>
+      <p>Gemini <span class="etiquette gratuit">gratuit</span></p>
+      <p>Grok <span class="etiquette credits">crédits</span></p>
+      <p>ChatGPT <span class="etiquette credits">crédits</span></p>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="actif" onclick="aller('accueil')">Accueil</button>
+  <button onclick="aller('chat')">Chat</button>
+  <button onclick="aller('projets')">Projets</button>
+  <button onclick="aller('memoire')">Mémoire</button>
+  <button onclick="aller('reglages')">Réglages</button>
+</nav>
+
+<script>
+  function aller(nom) {
+    document.querySelectorAll('.ecran').forEach(function (e) { e.classList.remove('actif'); });
+    document.getElementById(nom).classList.add('actif');
+    var ordre = ['accueil', 'chat', 'projets', 'memoire', 'reglages'];
+    document.querySelectorAll('nav button').forEach(function (b, i) {
+      b.classList.toggle('actif', ordre[i] === nom);
+    });
+  }
+</script>
+
+</body>
+</html>
