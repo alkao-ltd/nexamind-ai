@@ -29,6 +29,7 @@ h2{margin:8px 0}
 <header>NexaMind AI</header>
 <main id="app"></main>
 <script>
+  window.onerror=function(m,s,l){document.getElementById('app').innerHTML='<div class="card"><b>Erreur :</b> '+m+' (ligne '+l+')</div>';};
 var KEY='nexamind_v1';
 var S=load();
 var cur=null;
