@@ -3,116 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#4f46e5">
 <title>NexaMind AI</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding-bottom: 70px; }
-  header { padding: 16px; background: #1e293b; font-size: 20px; font-weight: bold; }
-  header span { color: #38bdf8; }
-  main { padding: 16px; }
-  .ecran { display: none; }
-  .ecran.actif { display: block; }
-  h2 { margin-bottom: 12px; font-size: 18px; }
-  .carte { background: #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-  .carte p { font-size: 14px; color: #94a3b8; margin-top: 4px; }
-  .bouton { display: block; width: 100%; padding: 14px; border: 0; border-radius: 10px; background: #38bdf8; color: #0f172a; font-size: 16px; font-weight: bold; margin-top: 8px; }
-  .etiquette { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
-  .gratuit { background: #166534; color: #bbf7d0; }
-  .credits { background: #854d0e; color: #fef08a; }
-  select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 15px; margin-bottom: 8px; }
-  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #1e293b; border-top: 1px solid #334155; }
-  nav button { flex: 1; padding: 12px 4px; border: 0; background: none; color: #94a3b8; font-size: 12px; }
-  nav button.actif { color: #38bdf8; font-weight: bold; }
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f4f8;color:#1f2937}
+header{background:#4f46e5;color:#fff;padding:16px;font-size:20px;font-weight:bold}
+main{padding:14px;max-width:600px;margin:auto}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+button{font-size:16px;padding:14px;border:0;border-radius:10px;background:#4f46e5;color:#fff;width:100%;margin-top:8px}
+button.sec{background:#e5e7eb;color:#1f2937}
+button.red{background:#dc2626}
+button.small{width:auto;padding:8px 12px;margin:8px 6px 0 0;font-size:14px}
+input,textarea,select{width:100%;font-size:16px;padding:12px;border:1px solid #d1d5db;border-radius:10px;margin-top:6px}
+textarea{min-height:90px}
+label{display:block;margin-top:12px;font-weight:bold;font-size:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}
+.tabs button{margin:0;padding:10px 12px;font-size:14px;width:auto;white-space:nowrap;background:#e5e7eb;color:#1f2937}
+.tabs button.on{background:#4f46e5;color:#fff}
+.muted{color:#6b7280;font-size:13px}
+h2{margin:8px 0}
 </style>
 </head>
 <body>
-
-<header>Nexa<span>Mind</span> AI</header>
-
-<main>
-
-  <section id="accueil" class="ecran actif">
-    <h2>Bienvenue</h2>
-    <div class="carte">
-      <strong>Change d'IA sans perdre ton travail</strong>
-      <p>Ton projet, tes fichiers et tes instructions restent dans la mémoire centrale.</p>
-    </div>
-    <button class="bouton" onclick="aller('chat')">Nouvelle conversation</button>
-  </section>
-
-  <section id="chat" class="ecran">
-    <h2>Nouvelle conversation</h2>
-    <select id="mode">
-      <option>Mode automatique</option>
-      <option>Choix manuel</option>
-    </select>
-    <select id="modele">
-      <option>Claude (crédits)</option>
-      <option>DeepSeek (crédits)</option>
-      <option>Gemini (gratuit, limité)</option>
-      <option>Grok (crédits)</option>
-      <option>ChatGPT (crédits)</option>
-    </select>
-    <textarea rows="5" placeholder="Écris ton message ici..."></textarea>
-    <button class="bouton" onclick="alert('Pas encore connecté : étape 4.')">Envoyer</button>
-  </section>
-
-  <section id="projets" class="ecran">
-    <h2>Mes projets</h2>
-    <div class="carte">
-      <strong>Exemple de projet</strong>
-      <p>Dernière IA : Gemini</p>
-      <p>Terminé : écran d'accueil</p>
-      <p>Prochaine tâche : connexion Firebase</p>
-      <button class="bouton" onclick="alert('Pas encore connecté : étape 6.')">Reprendre le travail</button>
-    </div>
-  </section>
-
-  <section id="memoire" class="ecran">
-    <h2>Mémoire des projets</h2>
-    <div class="carte"><strong>Permanente</strong><p>Objectifs, instructions, décisions</p></div>
-    <div class="carte"><strong>Projet</strong><p>Fichiers, technologies, progression</p></div>
-    <div class="carte"><strong>Récente</strong><p>Derniers échanges utiles</p></div>
-    <div class="carte"><strong>État de travail</strong><p>Dernière tâche, prochaine action</p></div>
-  </section>
-
-  <section id="reglages" class="ecran">
-    <h2>Réglages</h2>
-    <div class="carte">
-      <strong>Langue</strong>
-      <select><option>Français</option><option>English</option></select>
-    </div>
-    <div class="carte">
-      <strong>Fournisseurs d'IA</strong>
-      <p>Claude <span class="etiquette credits">crédits</span></p>
-      <p>DeepSeek <span class="etiquette credits">crédits</span></p>
-      <p>Gemini <span class="etiquette gratuit">gratuit</span></p>
-      <p>Grok <span class="etiquette credits">crédits</span></p>
-      <p>ChatGPT <span class="etiquette credits">crédits</span></p>
-    </div>
-  </section>
-
-</main>
-
-<nav>
-  <button class="actif" onclick="aller('accueil')">Accueil</button>
-  <button onclick="aller('chat')">Chat</button>
-  <button onclick="aller('projets')">Projets</button>
-  <button onclick="aller('memoire')">Mémoire</button>
-  <button onclick="aller('reglages')">Réglages</button>
-</nav>
-
+<header>NexaMind AI</header>
+<main id="app"></main>
 <script>
-  function aller(nom) {
-    document.querySelectorAll('.ecran').forEach(function (e) { e.classList.remove('actif'); });
-    document.getElementById(nom).classList.add('actif');
-    var ordre = ['accueil', 'chat', 'projets', 'memoire', 'reglages'];
-    document.querySelectorAll('nav button').forEach(function (b, i) {
-      b.classList.toggle('actif', ordre[i] === nom);
-    });
-  }
-</script>
+var KEY='nexamind_v1';
+var S=load();
+var cur=null;
+var tab='passeport';
+var TYPES=['Développement d\'application','Site web','Entrepreneuriat','Commerce en ligne','Rédaction','Étude de marché','Formation','Autre'];
+var STATUS=['Restante','En cours','Terminée'];
 
-</body>
-</html>
+function load(){
+  try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.projects)return d;}catch(e){}
+  return {projects:[],backups:[]};
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S));return true;}
+  catch(e){alert('Erreur de sauvegarde : '+e.message);return false;}
+}
+function esc(t){
+  return String(t==null?'':t).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function now(){return new Date().toISOString();}
+function fmt(d){return new Date(d).toLocaleString('fr-FR');}
+function hash(s){
+  var h=5381;
+  for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))|0;}
+  return (h>>>0).toString(16);
+}
+function P(){return S.projects.find(function(p){return p.id===cur;});}
+function touch(p,msg){
+  p.updatedAt=now();
+  p.version=(p.version||1)+1;
+  p.log.unshift({date:now(),text:msg});
+  save();
+}
+function backup(p){
+  S.backups.unshift({date:now(),project:JSON.parse(JSON.stringify(p))});
+  S.backups=S.backups.slice(0,20);
+}
+function render(){
+  document.getElementById('app').innerHTML=cur?viewProject():viewList();
+}
+
+/* ---------- Liste des projets ---------- */
+function viewList(){
+  var h='<div class="card"><h2>Nouveau projet</h2>'+
+  '<label>Nom du projet</label><input id="n_name" placeholder="Ex : Ma boutique">'+
+  '<label>Type</label><select id="n_type">'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'</select>'+
+  '<label>Objectif</label><textarea id="n_obj" placeholder="Que veux-tu réaliser ?"></textarea>'+
+  '<button onclick="createProject()">Créer le projet</button></div>';
+  h+='<h2>Mes projets ('+S.projects.length+')</h2>';
+  if(!S.projects.length)h+='<p class="muted">Aucun projet pour le moment.</p>';
+  S.projects.forEach(function(p){
+    h+='<div class="card"><b>'+esc(p.name)+'</b><div class="muted">'+esc(p.type)+' · modifié '+fmt(p.updatedAt)+'</div>'+
+    '<button onclick="openProject(\''+p.id+'\')">Ouvrir</button></div>';
+  });
+  h+='<div class="card"><h2>Importer un passeport</h2><input type="file" accept=".json" onchange="importFile(this)"></div>';
+  return h;
+}
+function createProject(){
+  var name=document.getElementById('n_name').value.trim();
+  if(!name){alert('Écris un nom de projet.');return;}
+  var p={id:uid(),name:name,type:document.getElementById('n_type').value,
+    createdAt:now(),updatedAt:now(),version:1,
+    passport:{objective:document.getElementById('n_obj').value.trim(),instructions:'',specs:'',tech:'',nextAction:''},
+    decisions:[],tasks:[],log:[{date:now(),text:'Projet créé'}]};
+  S.projects.unshift(p);
+  if(save()){cur=p.id;tab='passeport';render();}
+}
+function openProject(id){cur=id;tab='passeport';render();window.scrollTo(0,0);}
+function back(){cur=null;render();}
+function setTab(t){tab=t;render();}
+
+/* ---------- Vue projet ---------- */
+function viewProject(){
+  var p=P();
+  var T=['passeport','decisions','taches','historique','export'];
+  var N={passeport:'Passeport',decisions:'Décisions',taches:'Tâches',historique:'Historique',export:'Export'};
+  var h='<button class="sec" onclick="back()">← Mes projets</button><h2>'+esc(p.name)+'</h2>'+
+  '<div class="tabs">'+T.map(function(t){
+    return '<button class="'+(t===tab?'on':'')+'" onclick="setTab(\''+t+'\')">'+N[t]+'</button>';
+  }).join('')+'</div>';
+  if(tab==='passeport')h+=tabPassport(p);
+  if(tab==='decisions')h+=tabDecisions(p);
+  if(tab==='taches')h+=tabTasks(p);
+  if(tab==='historique')h+=tabLog(p);
+  if(tab==='export')h+=tabExport(p);
+  return h;
+}
+function field(id,label,val){
+  return '<label>'+label+'</label><textarea id="f_'+id+'">'+esc(val)+'</textarea>';
+}
+function tabPassport(p){
+  var q=p.passport;
+  return '<div class="card"><div class="muted">Version '+p.version+' · '+esc(p.type)+'</div>'+
+  field('objective','Objectif',q.objective)+
+  field('instructions','Instructions permanentes',q.instructions)+
+  field('specs','Cahier des charges',q.specs)+
+  field('tech','Technologies utilisées',q.tech)+
+  field('nextAction','Prochaine action recommandée',q.nextAction)+
+  '<button onclick="savePassport()">Enregistrer le passeport</button></div>';
+}
+function savePassport(){
+  var p=P();
+  ['objective','instructions','specs','tech','nextAction'].forEach(function(k){
+    p.passport[k]=document.getElementById('f_'+k).value.trim();
+  });
+  touch(p,'Passeport mis à jour');
+  alert('Passeport enregistré.');
+  render();
+}
+function tabDecisions(p){
+  var h='<div class="card"><label>Nouvelle décision</label><textarea id="d_new" placeholder="Ex : On utilise Firebase"></textarea>'+
+  '<button onclick="addDecision()">Ajouter</button></div>';
+  p.decisions.forEach(function(d){
+    h+='<div class="card">'+esc(d.text)+'<div class="muted">'+fmt(d.date)+'</div></div>';
+  });
+  if(!p.decisions.length)h+='<p class="muted">Aucune décision enregistrée.</p>';
+  return h;
+}
+function addDecision(){
+  var t=document.getElementById('d_new').value.trim();
+  if(!t)return;
+  var p=P();
+  p.decisions.unshift({id:uid(),text:t,date:now()});
+  touch(p,'Décision ajoutée');
+  render();
+}
+function tabTasks(p){
+  var h='<div class="card"><label>Nouvelle tâche</label><input id="t_new" placeholder="Ex : Créer la page d\'accueil">'+
+  '<button onclick="addTask()">Ajouter</button></div>';
+  p.tasks.forEach(function(t){
+    h+='<div class="card">'+esc(t.text)+'<br>'+
+    '<button class="small" onclick="cycleTask(\''+t.id+'\')">'+STATUS[t.s]+'</button>'+
+    '<button class="small red" onclick="delTask(\''+t.id+'\')">Supprimer</button></div>';
+  });
+  if(!p.tasks.length)h+='<p class="muted">Aucune tâche.</p>';
+  return h;
+}
+function addTask(){
+  var t=document.getElementById('t_new').value.trim();
+  if(!t)return;
+  var p=P();
+  p.tasks.push({id:uid(),text:t,s:0});
+  touch(p,'Tâche ajoutée : '+t);
+  render();
+}
+function cycleTask(id){
+  var p=P();
+  var t=p.tasks.find(function(x){return x.id===id;});
+  t.s=(t.s+1)%3;
+  touch(p,'Tâche « '+t.text+' » : '+STATUS[t.s]);
+  render();
+}
+function delTask(id){
+  if(!confirm('Supprimer cette tâche ?'))return;
+  var p=P();
+  p.tasks=p.tasks.filter(function(x){return x.id!==id;});
+  touch(p,'Tâche supprimée');
+  render();
+}
+function tabLog(p){
+  var h='';
+  p.log.forEach(funct
