@@ -192,4 +192,83 @@ function delTask(id){
 }
 function tabLog(p){
   var h='';
-  p.log.forEach(funct
+  p.log.forEach(function(l){
+    h+='<div class="card">'+esc(l.text)+'<div class="muted">'+fmt(l.date)+'</div></div>';
+  });
+  return h;
+}
+function tabExport(p){
+  return '<div class="card"><button onclick="exportJSON()">Exporter le passeport (JSON)</button>'+
+  '<button class="sec" onclick="exportMD()">Exporter le résumé (Markdown)</button></div>'+
+  '<div class="card"><button class="red" onclick="deleteProject()">Supprimer ce projet</button>'+
+  '<div class="muted">Une sauvegarde est gardée avant suppression.</div></div>';
+}
+
+/* ---------- Export / Import ---------- */
+function download(name,text,type){
+  var b=new Blob([text],{type:type});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'projet';}
+function exportJSON(){
+  var p=P();
+  var o={format:'nexamind-passport',v:1,exportedAt:now(),checksum:hash(JSON.stringify(p)),project:p};
+  download('passeport-'+slug(p.name)+'.json',JSON.stringify(o,null,2),'application/json');
+}
+function exportMD(){
+  var p=P(),q=p.passport;
+  var m='# '+p.name+'\n\nType : '+p.type+'\nVersion : '+p.version+'\n\n'+
+  '## Objectif\n'+q.objective+'\n\n## Instructions permanentes\n'+q.instructions+'\n\n'+
+  '## Cahier des charges\n'+q.specs+'\n\n## Technologies\n'+q.tech+'\n\n'+
+  '## Décisions\n'+p.decisions.map(function(d){return '- '+d.text;}).join('\n')+'\n\n'+
+  '## Tâches\n'+p.tasks.map(function(t){return '- ['+STATUS[t.s]+'] '+t.text;}).join('\n')+'\n\n'+
+  '## Prochaine action\n'+q.nextAction+'\n';
+  download('resume-'+slug(p.name)+'.md',m,'text/markdown');
+}
+function importFile(input){
+  var f=input.files[0];
+  if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var o=JSON.parse(r.result);
+      if(o.format!=='nexamind-passport'||!o.project)throw new Error('Ce fichier n\'est pas un passeport NexaMind.');
+      var p=o.project;
+      if(!p.id||!p.name||!p.passport||!Array.isArray(p.decisions)||!Array.isArray(p.tasks)||!Array.isArray(p.log))throw new Error('Passeport incomplet.');
+      if(hash(JSON.stringify(p))!==o.checksum)throw new Error('Intégrité non valide : le fichier a été modifié ou est abîmé.');
+      var i=S.projects.findIndex(function(x){return x.id===p.id;});
+      if(i>=0){
+        var old=S.projects[i];
+        var msg='Ce projet existe déjà (version locale '+old.version+', importée '+p.version+').';
+        if(new Date(old.updatedAt)>new Date(p.updatedAt))msg+='\nATTENTION : ta version locale est plus récente.';
+        msg+='\nRemplacer ? Une sauvegarde de la version locale sera gardée.';
+        if(!confirm(msg))return;
+        backup(old);
+        S.projects[i]=p;
+      }else{
+        S.projects.unshift(p);
+      }
+      p.log.unshift({date:now(),text:'Passeport importé'});
+      if(save()){alert('Import réussi.');render();}
+    }catch(e){alert('Import impossible : '+e.message);}
+  };
+  r.readAsText(f);
+}
+function deleteProject(){
+  var p=P();
+  if(!confirm('Supprimer « '+p.name+' » ?'))return;
+  backup(p);
+  S.projects=S.projects.filter(function(x){return x.id!==p.id;});
+  save();
+  cur=null;
+  render();
+}
+render();
+</script>
+</body>
+  </html>
