@@ -40,6 +40,9 @@ var cur=null;
 var tab='passeport';
 var TYPES=['Développement d\'application','Site web','Entrepreneuriat','Commerce en ligne','Rédaction','Étude de marché','Formation','Autre'];
 var STATUS=['Restante','En cours','Terminée'];
+var IAS=['Claude','DeepSeek','Grok','ChatGPT','Gemini','Perplexity','OpenCode (PC)','Autre'];
+var AUTH=['Moi'].concat(IAS);
+var openFileId=null,editBase=0,lastCtx='',trIa='DeepSeek',trSize='court';
 
 window.addEventListener('error',function(ev){setStatus('Erreur : '+ev.message+' (ligne '+ev.lineno+')',true);});
 
@@ -64,9 +67,23 @@ function hash(s){
   for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))|0;}
   return (h>>>0).toString(16);
 }
+function $id(i){return document.getElementById(i);}
 function P(){return S.projects.find(function(p){return p.id===cur;});}
+function ensureFiles(p){if(!p.files)p.files=[];return p.files;}
+function opts(list,sel){
+  return list.map(function(x){
+    return '<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>';
+  }).join('');
+}
+function tooBig(p,extra){
+  if(JSON.stringify(p).length+extra>700000){
+    alert('Projet trop gros pour la sauvegarde en ligne gratuite. Enregistre moins de contenu.');
+    return true;
+  }
+  return false;
+}
 function setStatus(t,err){
-  var s=document.getElementById('status');
+  var s=$id('status');
   if(s){s.textContent=t;s.style.color=err?'#dc2626':'#6b7280';}
 }
 function cloudPush(p){
@@ -86,7 +103,7 @@ function backup(p){
   S.backups=S.backups.slice(0,20);
 }
 function render(){
-  document.getElementById('app').innerHTML=cur?viewProject():viewList();
+  $id('app').innerHTML=cur?viewProject():viewList();
 }
 
 /* ---------- Compte et synchronisation ---------- */
@@ -104,12 +121,12 @@ function viewAccount(){
 }
 function authErr(e){return 'Erreur : '+(e.code||e.message);}
 async function doLogin(){
-  var m=document.getElementById('a_mail').value.trim(),p=document.getElementById('a_pass').value;
+  var m=$id('a_mail').value.trim(),p=$id('a_pass').value;
   if(!m||!p){alert('Écris ton email et ton mot de passe.');return;}
   try{await cloud.login(m,p);}catch(e){alert(authErr(e));}
 }
 async function doSignup(){
-  var m=document.getElementById('a_mail').value.trim(),p=document.getElementById('a_pass').value;
+  var m=$id('a_mail').value.trim(),p=$id('a_pass').value;
   if(!m||!p){alert('Écris ton email et ton mot de passe.');return;}
   if(p.length<6){alert('Le mot de passe doit avoir au moins 6 caractères.');return;}
   try{await cloud.signup(m,p);}catch(e){alert(authErr(e));}
@@ -174,24 +191,24 @@ function viewList(){
   return h;
 }
 function createProject(){
-  var name=document.getElementById('n_name').value.trim();
+  var name=$id('n_name').value.trim();
   if(!name){alert('Écris un nom de projet.');return;}
-  var p={id:uid(),name:name,type:document.getElementById('n_type').value,
+  var p={id:uid(),name:name,type:$id('n_type').value,
     createdAt:now(),updatedAt:now(),version:1,
-    passport:{objective:document.getElementById('n_obj').value.trim(),instructions:'',specs:'',tech:'',nextAction:''},
-    decisions:[],tasks:[],log:[{date:now(),text:'Projet créé'}]};
+    passport:{objective:$id('n_obj').value.trim(),instructions:'',specs:'',tech:'',nextAction:''},
+    decisions:[],tasks:[],files:[],log:[{date:now(),text:'Projet créé'}]};
   S.projects.unshift(p);
   if(save()){cloudPush(p);cur=p.id;tab='passeport';render();}
 }
-function openProject(id){cur=id;tab='passeport';render();window.scrollTo(0,0);}
-function back(){cur=null;render();}
+function openProject(id){cur=id;tab='passeport';openFileId=null;lastCtx='';render();window.scrollTo(0,0);}
+function back(){cur=null;openFileId=null;lastCtx='';render();}
 function setTab(t){tab=t;render();}
 
 /* ---------- Vue projet ---------- */
 function viewProject(){
   var p=P();
-  var T=['passeport','decisions','taches','historique','export'];
-  var N={passeport:'Passeport',decisions:'Décisions',taches:'Tâches',historique:'Historique',export:'Export'};
+  var T=['passeport','decisions','taches','fichiers','transfert','historique','export'];
+  var N={passeport:'Passeport',decisions:'Décisions',taches:'Tâches',fichiers:'Fichiers',transfert:'Transfert',historique:'Historique',export:'Export'};
   var h='<button class="sec" onclick="back()">← Mes projets</button><h2>'+esc(p.name)+'</h2>'+
   '<div class="tabs">'+T.map(function(t){
     return '<button class="'+(t===tab?'on':'')+'" onclick="setTab(\''+t+'\')">'+N[t]+'</button>';
@@ -199,6 +216,8 @@ function viewProject(){
   if(tab==='passeport')h+=tabPassport(p);
   if(tab==='decisions')h+=tabDecisions(p);
   if(tab==='taches')h+=tabTasks(p);
+  if(tab==='fichiers')h+=tabFiles(p);
+  if(tab==='transfert')h+=tabTransfer(p);
   if(tab==='historique')h+=tabLog(p);
   if(tab==='export')h+=tabExport(p);
   return h;
@@ -219,7 +238,7 @@ function tabPassport(p){
 function savePassport(){
   var p=P();
   ['objective','instructions','specs','tech','nextAction'].forEach(function(k){
-    p.passport[k]=document.getElementById('f_'+k).value.trim();
+    p.passport[k]=$id('f_'+k).value.trim();
   });
   touch(p,'Passeport mis à jour');
   alert('Passeport enregistré.');
@@ -235,7 +254,7 @@ function tabDecisions(p){
   return h;
 }
 function addDecision(){
-  var t=document.getElementById('d_new').value.trim();
+  var t=$id('d_new').value.trim();
   if(!t)return;
   var p=P();
   p.decisions.unshift({id:uid(),text:t,date:now()});
@@ -254,7 +273,7 @@ function tabTasks(p){
   return h;
 }
 function addTask(){
-  var t=document.getElementById('t_new').value.trim();
+  var t=$id('t_new').value.trim();
   if(!t)return;
   var p=P();
   p.tasks.push({id:uid(),text:t,s:0});
@@ -289,7 +308,292 @@ function tabExport(p){
   '<div class="muted">Une sauvegarde est gardée sur ce téléphone avant suppression.</div></div>';
 }
 
-/* ---------- Export / Import ---------- */
+/* ---------- Onglet Fichiers ---------- */
+function tabFiles(p){
+  var fl=ensureFiles(p);
+  var h='<div class="card"><b>Ajouter ou mettre à jour un fichier</b>'+
+  '<label>Nom du fichier</label><input id="fl_name" placeholder="Ex : index.html">'+
+  '<label>Contenu</label><textarea id="fl_content" style="min-height:140px"></textarea>'+
+  '<label>Fait par</label><select id="fl_by">'+opts(AUTH,'Moi')+'</select>'+
+  '<button onclick="saveFile()">Enregistrer</button></div>';
+  fl.forEach(function(f){
+    var last=f.versions[f.versions.length-1];
+    h+='<div class="card"><b>'+esc(f.name)+'</b><div class="muted">Version '+last.n+' · par '+esc(last.by)+' · '+fmt(last.date)+'</div>'+
+    '<button class="small" onclick="openFile(\''+f.id+'\')">'+(openFileId===f.id?'Fermer':'Ouvrir')+'</button></div>';
+    if(openFileId===f.id)h+=fileDetail(f,last);
+  });
+  if(!fl.length)h+='<p class="muted">Aucun fichier enregistré.</p>';
+  return h;
+}
+function fileDetail(f,last){
+  var h='<div class="card"><b>'+esc(f.name)+' : version '+last.n+'</b>'+
+  '<textarea id="fe_content" style="min-height:160px">'+esc(last.content)+'</textarea>'+
+  '<label>Fait par</label><select id="fe_by">'+opts(AUTH,'Moi')+'</select>'+
+  '<button onclick="updateFile(\''+f.id+'\')">Enregistrer une nouvelle version</button>'+
+  '<h2>Versions</h2>';
+  f.versions.slice().reverse().forEach(function(v){
+    h+='<div class="muted" style="margin-top:8px">v'+v.n+' · '+esc(v.by)+' · '+fmt(v.date)+'</div>';
+    if(v.n!==last.n)h+='<button class="small sec" onclick="restoreFile(\''+f.id+'\','+v.n+')">Restaurer cette version</button>';
+  });
+  return h+'</div>';
+}
+function openFile(id){
+  var p=P();
+  if(openFileId===id){openFileId=null;}
+  else{
+    openFileId=id;
+    var f=p.files.find(function(x){return x.id===id;});
+    editBase=f.versions[f.versions.length-1].n;
+  }
+  render();
+}
+function saveFile(){
+  var p=P();
+  var name=$id('fl_name').value.trim(),content=$id('fl_content').value,by=$id('fl_by').value;
+  if(!name){alert('Écris le nom du fichier.');return;}
+  if(!content){alert('Le contenu est vide.');return;}
+  if(tooBig(p,content.length))return;
+  var f=ensureFiles(p).find(function(x){return x.name===name;});
+  var h=hash(content);
+  if(f){
+    var last=f.versions[f.versions.length-1];
+    if(last.hash===h){alert('Aucun changement : même contenu que la version '+last.n+'.');return;}
+    f.versions.push({n:last.n+1,date:now(),by:by,hash:h,content:content});
+    touch(p,'Fichier '+name+' : version '+(last.n+1)+' ('+by+')');
+  }else{
+    p.files.push({id:uid(),name:name,versions:[{n:1,date:now(),by:by,hash:h,content:content}]});
+    touch(p,'Fichier ajouté : '+name+' ('+by+')');
+  }
+  render();
+}
+function updateFile(id){
+  var p=P();
+  var f=p.files.find(function(x){return x.id===id;});
+  var last=f.versions[f.versions.length-1];
+  if(last.n!==editBase){
+    alert('CONFLIT : une version plus récente existe (v'+last.n+'). Ferme et rouvre le fichier avant de modifier.');
+    return;
+  }
+  var c=$id('fe_content').value,by=$id('fe_by').value;
+  if(hash(c)===last.hash){alert('Aucun changement.');return;}
+  if(tooBig(p,c.length))return;
+  f.versions.push({n:last.n+1,date:now(),by:by,hash:hash(c),content:c});
+  editBase=last.n+1;
+  touch(p,'Fichier '+f.name+' : version '+(last.n+1)+' ('+by+')');
+  render();
+}
+function restoreFile(id,n){
+  var p=P();
+  var f=p.files.find(function(x){return x.id===id;});
+  var v=f.versions.find(function(x){return x.n===n;});
+  var last=f.versions[f.versions.length-1];
+  if(!confirm('Restaurer la version '+n+' de '+f.name+' ?\nCela crée une nouvelle version (v'+(last.n+1)+'). Rien n\'est perdu.'))return;
+  if(tooBig(p,v.content.length))return;
+  f.versions.push({n:last.n+1,date:now(),by:'Restauration v'+n,hash:v.hash,content:v.content});
+  editBase=last.n+1;
+  touch(p,'Fichier '+f.name+' : restauration de la version '+n);
+  render();
+}
+
+/* ---------- Rapport de continuité ---------- */
+function contCard(p){
+  var t=p.tasks,fl=ensureFiles(p);
+  var done=t.filter(function(x){return x.s===2;}).length;
+  var prog=t.filter(function(x){return x.s===1;}).length;
+  var rest=t.filter(function(x){return x.s===0;}).length;
+  var warn=[];
+  if(!p.passport.objective)warn.push('Objectif manquant');
+  if(!p.passport.instructions)warn.push('Instructions permanentes manquantes');
+  if(!p.passport.nextAction)warn.push('Prochaine action manquante');
+  if(!fl.length)warn.push('Aucun fichier enregistré');
+  var h='<div class="card"><b>Rapport de continuité</b>'+
+  '<div class="muted">Tâches : '+done+' terminées, '+prog+' en cours, '+rest+' restantes<br>'+
+  'Fichiers : '+fl.length+'<br>Version du passeport : '+p.version+'</div>';
+  if(warn.length)h+='<div style="color:#dc2626;margin-top:8px;font-size:14px">À compléter : '+warn.map(esc).join(' · ')+'</div>';
+  else h+='<div style="color:#16a34a;margin-top:8px;font-size:14px">Le passeport est prêt pour un transfert.</div>';
+  h+='<div class="muted" style="margin-top:8px">Dernières modifications :</div>';
+  p.log.slice(0,3).forEach(function(l){h+='<div class="muted">· '+esc(l.text)+'</div>';});
+  h+='<div class="muted" style="margin-top:8px">Rappel : ce que dit une IA est déclaré, pas vérifié.</div></div>';
+  return h;
+}
+
+/* ---------- Onglet Transfert ---------- */
+function tabTransfer(p){
+  var h=contCard(p);
+  h+='<div class="card"><b>1. Préparer le contexte pour une IA</b>'+
+  '<label>IA qui va reprendre le travail</label><select id="tr_ia">'+opts(IAS,trIa)+'</select>'+
+  '<label>Taille</label><select id="tr_size">'+
+  '<option value="court"'+(trSize==='court'?' selected':'')+'>Court (l\'essentiel)</option>'+
+  '<option value="complet"'+(trSize==='complet'?' selected':'')+'>Complet (avec le contenu des fichiers)</option></select>'+
+  '<button onclick="prepareContext()">Préparer</button>';
+  if(lastCtx){
+    h+='<textarea id="tr_out" readonly style="min-height:200px;margin-top:12px">'+esc(lastCtx)+'</textarea>'+
+    '<div class="muted">'+lastCtx.length+' caractères</div>'+
+    '<button onclick="copyCtx()">Copier le contexte</button>'+
+    '<button class="sec" onclick="downloadCtx()">Télécharger en fichier Markdown</button>';
+  }
+  h+='</div>';
+  h+='<div class="card"><b>2. Importer la réponse de l\'IA</b>'+
+  '<div class="muted">Colle la réponse complète. Elle doit contenir le bloc NEXAMIND demandé dans le contexte.</div>'+
+  '<label>IA qui a répondu</label><select id="im_ia">'+opts(IAS,trIa)+'</select>'+
+  '<label>Réponse de l\'IA</label><textarea id="im_txt" style="min-height:160px"></textarea>'+
+  '<button onclick="importReturn()">Importer le retour</button></div>';
+  return h;
+}
+function buildContext(p,ia,full){
+  var q=p.passport,F=String.fromCharCode(96,96,96),L=[];
+  var fl=ensureFiles(p);
+  L.push('# Projet : '+p.name);
+  L.push('Type : '+p.type+' | Version du passeport : '+p.version+' | Préparé pour : '+ia+' | Date : '+fmt(now()));
+  L.push('');
+  L.push('## Objectif');L.push(q.objective||'(non renseigné)');L.push('');
+  L.push('## Instructions permanentes');L.push(q.instructions||'(aucune)');L.push('');
+  if(full){
+    L.push('## Cahier des charges');L.push(q.specs||'(non renseigné)');L.push('');
+    L.push('## Technologies');L.push(q.tech||'(non renseigné)');L.push('');
+  }
+  var dec=full?p.decisions:p.decisions.slice(0,10);
+  L.push('## Décisions prises'+(full?'':' (10 dernières)'));
+  if(!dec.length)L.push('(aucune)');
+  dec.forEach(function(d){L.push('- '+d.text);});
+  L.push('');
+  var tl=full?p.tasks:p.tasks.filter(function(t){return t.s!==2;});
+  L.push('## Tâches'+(full?'':' (non terminées)'));
+  if(!tl.length)L.push('(aucune)');
+  tl.forEach(function(t){L.push('- ['+STATUS[t.s]+'] '+t.text);});
+  L.push('');
+  L.push('## Fichiers du projet');
+  if(!fl.length)L.push('(aucun)');
+  fl.forEach(function(f){
+    var last=f.versions[f.versions.length-1];
+    if(full){
+      L.push('### '+f.name+' (version '+last.n+')');
+      L.push(F);L.push(last.content);L.push(F);
+    }else{
+      L.push('- '+f.name+' : version '+last.n+' (par '+last.by+')');
+    }
+  });
+  L.push('');
+  L.push('## Prochaine action recommandée');L.push(q.nextAction||'(non renseignée)');L.push('');
+  L.push('## Consignes pour toi, '+ia);
+  L.push('- Reprends le travail à partir de ce passeport. Ne redemande pas ce qui est déjà décidé.');
+  L.push('- N\'invente rien. Écris dans TACHES_TERMINEES seulement ce que tu as vraiment fait.');
+  L.push('- Pour chaque fichier modifié, donne le contenu COMPLET et indique la BASE : le numéro de version sur laquelle tu t\'es appuyé.');
+  L.push('- Termine ta réponse par ce bloc exact, pour que NexaMind mette le projet à jour :');
+  L.push('=== NEXAMIND ===');
+  L.push('DECISIONS:');
+  L.push('- ...');
+  L.push('TACHES_TERMINEES:');
+  L.push('- texte exact de la tâche');
+  L.push('TACHES_AJOUTEES:');
+  L.push('- ...');
+  L.push('PROCHAINE_ACTION: ...');
+  L.push('=== FICHIER: nom | BASE: numéro ===');
+  L.push('(contenu complet du fichier)');
+  L.push('=== FIN FICHIER ===');
+  L.push('=== FIN ===');
+  return L.join('\n');
+}
+function prepareContext(){
+  var p=P();
+  trIa=$id('tr_ia').value;trSize=$id('tr_size').value;
+  lastCtx=buildContext(p,trIa,trSize==='complet');
+  render();
+}
+function copyCtx(){
+  if(!lastCtx){alert('Prépare d\'abord le contexte.');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(lastCtx).then(
+      function(){alert('Contexte copié.');},
+      function(){alert('Copie impossible : sélectionne le texte à la main.');}
+    );
+  }else{alert('Copie impossible : sélectionne le texte à la main.');}
+}
+function downloadCtx(){
+  if(!lastCtx){alert('Prépare d\'abord le contexte.');return;}
+  download('NEXAMIND-CONTEXTE-'+slug(P().name)+'.md',lastCtx,'text/markdown');
+}
+
+/* ---------- Import du retour d'une IA ---------- */
+function parseReturn(txt){
+  var out={files:[],decisions:[],done:[],added:[],next:''};
+  var rest=txt.replace(/=== FICHIER:\s*(.+?)\s*\|\s*BASE:\s*(\d+)\s*===\r?\n([\s\S]*?)\r?\n=== FIN FICHIER ===/g,
+    function(m,n,b,c){out.files.push({name:n.trim(),base:parseInt(b,10),content:c});return '';});
+  var mk='=== NEXAMIND ===';
+  var s=rest.indexOf(mk);
+  if(s<0){return out.files.length?out:null;}
+  var e=rest.indexOf('=== FIN ===',s);
+  var body=rest.slice(s+mk.length,e<0?undefined:e);
+  var sec=null;
+  body.split(/\r?\n/).forEach(function(line){
+    var t=line.trim();
+    if(!t)return;
+    var m=t.match(/^(DECISIONS|TACHES_TERMINEES|TACHES_AJOUTEES|PROCHAINE_ACTION)\s*:\s*(.*)$/i);
+    if(m){
+      sec=m[1].toUpperCase();
+      if(sec==='PROCHAINE_ACTION')out.next=m[2].trim();
+      return;
+    }
+    if(t.charAt(0)==='-'){
+      var item=t.slice(1).trim();
+      if(!item||item==='...')return;
+      if(sec==='DECISIONS')out.decisions.push(item);
+      else if(sec==='TACHES_TERMINEES')out.done.push(item);
+      else if(sec==='TACHES_AJOUTEES')out.added.push(item);
+    }else if(sec==='PROCHAINE_ACTION'){
+      out.next=(out.next+' '+t).trim();
+    }
+  });
+  return out;
+}
+function importReturn(){
+  var p=P();
+  var ia=$id('im_ia').value,txt=$id('im_txt').value;
+  if(!txt.trim()){alert('Colle d\'abord la réponse de l\'IA.');return;}
+  var r=parseReturn(txt);
+  if(!r){alert('Je ne trouve pas le bloc NEXAMIND dans cette réponse. Demande à l\'IA de le refaire avec le format du contexte.');return;}
+  var extra=0;r.files.forEach(function(f){extra+=f.content.length;});
+  if(tooBig(p,extra))return;
+  backup(p);
+  var rep=[];
+  r.files.forEach(function(f){
+    var ex=ensureFiles(p).find(function(x){return x.name===f.name;});
+    var h=hash(f.content);
+    if(!ex){
+      p.files.push({id:uid(),name:f.name,versions:[{n:1,date:now(),by:ia,hash:h,content:f.content}]});
+      rep.push('Nouveau fichier : '+f.name);
+      return;
+    }
+    var last=ex.versions[ex.versions.length-1];
+    if(last.hash===h){rep.push(f.name+' : identique, ignoré');return;}
+    if(f.base!==last.n){
+      if(!confirm('CONFLIT sur '+f.name+'.\nL\'IA est partie de la version '+f.base+', mais la dernière est la version '+last.n+'.\nOK = enregistrer le fichier de l\'IA comme nouvelle version (l\'ancienne reste récupérable).\nAnnuler = ignorer ce fichier.')){
+        rep.push(f.name+' : ignoré (conflit)');
+        return;
+      }
+    }
+    ex.versions.push({n:last.n+1,date:now(),by:ia,hash:h,content:f.content});
+    rep.push(f.name+' : version '+(last.n+1));
+  });
+  r.decisions.forEach(function(d){
+    p.decisions.unshift({id:uid(),text:d+' (déclaré par '+ia+')',date:now()});
+  });
+  if(r.decisions.length)rep.push(r.decisions.length+' décision(s) ajoutée(s)');
+  r.done.forEach(function(d){
+    var t=p.tasks.find(function(x){return x.text.toLowerCase()===d.toLowerCase();});
+    if(t){t.s=2;rep.push('Tâche terminée : '+t.text);}
+    else rep.push('Tâche introuvable (ignorée) : '+d);
+  });
+  r.added.forEach(function(a){p.tasks.push({id:uid(),text:a,s:0});});
+  if(r.added.length)rep.push(r.added.length+' tâche(s) ajoutée(s)');
+  if(r.next){p.passport.nextAction=r.next;rep.push('Prochaine action mise à jour');}
+  if(!rep.length)rep.push('Rien à importer');
+  touch(p,'Retour importé de '+ia+' : '+rep.join(' ; ')+' (déclaré par l\'IA, non vérifié)');
+  alert('Import terminé. Ce sont des informations déclarées par l\'IA, à vérifier.\n\n'+rep.join('\n'));
+  render();
+}
+
+/* ---------- Export / Import passeport ---------- */
 function download(name,text,type){
   var b=new Blob([text],{type:type});
   var a=document.createElement('a');
@@ -312,6 +616,7 @@ function exportMD(){
   '## Cahier des charges\n'+q.specs+'\n\n## Technologies\n'+q.tech+'\n\n'+
   '## Décisions\n'+p.decisions.map(function(d){return '- '+d.text;}).join('\n')+'\n\n'+
   '## Tâches\n'+p.tasks.map(function(t){return '- ['+STATUS[t.s]+'] '+t.text;}).join('\n')+'\n\n'+
+  '## Fichiers\n'+ensureFiles(p).map(function(f){return '- '+f.name+' (version '+f.versions[f.versions.length-1].n+')';}).join('\n')+'\n\n'+
   '## Prochaine action\n'+q.nextAction+'\n';
   download('resume-'+slug(p.name)+'.md',m,'text/markdown');
 }
