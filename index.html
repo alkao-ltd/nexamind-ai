@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#4f46e5">
-<title>NexaMind AI</title><link rel="manifest" href="manifest.json">
+<title>NexaMind AI</title>
+<link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js');});}</script>
 <style>
@@ -25,19 +26,22 @@ label{display:block;margin-top:12px;font-weight:bold;font-size:14px}
 .tabs button.on{background:#4f46e5;color:#fff}
 .muted{color:#6b7280;font-size:13px}
 h2{margin:8px 0}
+#status{padding:6px 14px;font-size:13px;color:#6b7280;min-height:24px}
 </style>
 </head>
 <body>
 <header>NexaMind AI</header>
+<div id="status"></div>
 <main id="app"></main>
 <script>
-  window.onerror=function(m,s,l){document.getElementById('app').innerHTML='<div class="card"><b>Erreur :</b> '+m+' (ligne '+l+')</div>';};
 var KEY='nexamind_v1';
 var S=load();
 var cur=null;
 var tab='passeport';
 var TYPES=['Développement d\'application','Site web','Entrepreneuriat','Commerce en ligne','Rédaction','Étude de marché','Formation','Autre'];
 var STATUS=['Restante','En cours','Terminée'];
+
+window.addEventListener('error',function(ev){setStatus('Erreur : '+ev.message+' (ligne '+ev.lineno+')',true);});
 
 function load(){
   try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.projects)return d;}catch(e){}
@@ -61,11 +65,21 @@ function hash(s){
   return (h>>>0).toString(16);
 }
 function P(){return S.projects.find(function(p){return p.id===cur;});}
+function setStatus(t,err){
+  var s=document.getElementById('status');
+  if(s){s.textContent=t;s.style.color=err?'#dc2626':'#6b7280';}
+}
+function cloudPush(p){
+  if(!window.cloud||!cloud.user())return;
+  cloud.push(p).then(function(){setStatus('☁ Sauvegardé en ligne');})
+  .catch(function(e){setStatus('Erreur cloud : '+(e.code||e.message),true);});
+}
 function touch(p,msg){
   p.updatedAt=now();
   p.version=(p.version||1)+1;
   p.log.unshift({date:now(),text:msg});
   save();
+  cloudPush(p);
 }
 function backup(p){
   S.backups.unshift({date:now(),project:JSON.parse(JSON.stringify(p))});
@@ -75,9 +89,77 @@ function render(){
   document.getElementById('app').innerHTML=cur?viewProject():viewList();
 }
 
+/* ---------- Compte et synchronisation ---------- */
+function viewAccount(){
+  if(!window.cloud)return '<div class="card"><b>Compte</b><div class="muted">Mode hors connexion : sauvegarde sur ce téléphone seulement.</div></div>';
+  var u=cloud.user();
+  if(u)return '<div class="card"><b>Compte</b><div class="muted">Connecté : '+esc(u.email)+'</div>'+
+    '<button onclick="doSync()">Synchroniser maintenant</button>'+
+    '<button class="sec" onclick="doLogout()">Se déconnecter</button></div>';
+  return '<div class="card"><b>Compte (sauvegarde en ligne)</b>'+
+    '<label>Email</label><input id="a_mail" type="email" autocomplete="email">'+
+    '<label>Mot de passe (6 caractères minimum)</label><input id="a_pass" type="password" autocomplete="current-password">'+
+    '<button onclick="doLogin()">Se connecter</button>'+
+    '<button class="sec" onclick="doSignup()">Créer un compte</button></div>';
+}
+function authErr(e){return 'Erreur : '+(e.code||e.message);}
+async function doLogin(){
+  var m=document.getElementById('a_mail').value.trim(),p=document.getElementById('a_pass').value;
+  if(!m||!p){alert('Écris ton email et ton mot de passe.');return;}
+  try{await cloud.login(m,p);}catch(e){alert(authErr(e));}
+}
+async function doSignup(){
+  var m=document.getElementById('a_mail').value.trim(),p=document.getElementById('a_pass').value;
+  if(!m||!p){alert('Écris ton email et ton mot de passe.');return;}
+  if(p.length<6){alert('Le mot de passe doit avoir au moins 6 caractères.');return;}
+  try{await cloud.signup(m,p);}catch(e){alert(authErr(e));}
+}
+async function doLogout(){
+  try{await cloud.logout();setStatus('');}catch(e){alert(authErr(e));}
+}
+function doSync(){syncAll();}
+window.onAuth=function(){
+  render();
+  if(window.cloud&&cloud.user())syncAll();
+};
+async function syncAll(){
+  if(!window.cloud||!cloud.user())return;
+  setStatus('Synchronisation en cours…');
+  try{
+    var remote=await cloud.list();
+    var seen={};
+    for(var i=0;i<remote.length;i++){
+      var rp;
+      try{rp=JSON.parse(remote[i].data);}catch(e){continue;}
+      seen[rp.id]=1;
+      var li=S.projects.findIndex(function(x){return x.id===rp.id;});
+      if(li<0){S.projects.unshift(rp);continue;}
+      var l=S.projects[li];
+      if(l.version===rp.version&&l.updatedAt===rp.updatedAt)continue;
+      var lt=new Date(l.updatedAt),rt=new Date(rp.updatedAt);
+      if(rt>lt&&rp.version>=l.version){
+        backup(l);S.projects[li]=rp;
+      }else if(lt>rt&&l.version>=rp.version){
+        await cloud.push(l);
+      }else{
+        var keepLocal=confirm('Conflit sur « '+l.name+' ».\nOK = garder la version de ce téléphone.\nAnnuler = prendre la version en ligne.\nL\'autre version sera sauvegardée.');
+        if(keepLocal){backup(rp);await cloud.push(l);}
+        else{backup(l);S.projects[li]=rp;}
+      }
+    }
+    for(var j=0;j<S.projects.length;j++){
+      if(!seen[S.projects[j].id])await cloud.push(S.projects[j]);
+    }
+    save();
+    render();
+    setStatus('☁ Synchronisé');
+  }catch(e){setStatus('Erreur de synchronisation : '+(e.code||e.message),true);}
+}
+
 /* ---------- Liste des projets ---------- */
 function viewList(){
-  var h='<div class="card"><h2>Nouveau projet</h2>'+
+  var h=viewAccount();
+  h+='<div class="card"><h2>Nouveau projet</h2>'+
   '<label>Nom du projet</label><input id="n_name" placeholder="Ex : Ma boutique">'+
   '<label>Type</label><select id="n_type">'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'</select>'+
   '<label>Objectif</label><textarea id="n_obj" placeholder="Que veux-tu réaliser ?"></textarea>'+
@@ -99,7 +181,7 @@ function createProject(){
     passport:{objective:document.getElementById('n_obj').value.trim(),instructions:'',specs:'',tech:'',nextAction:''},
     decisions:[],tasks:[],log:[{date:now(),text:'Projet créé'}]};
   S.projects.unshift(p);
-  if(save()){cur=p.id;tab='passeport';render();}
+  if(save()){cloudPush(p);cur=p.id;tab='passeport';render();}
 }
 function openProject(id){cur=id;tab='passeport';render();window.scrollTo(0,0);}
 function back(){cur=null;render();}
@@ -204,7 +286,7 @@ function tabExport(p){
   return '<div class="card"><button onclick="exportJSON()">Exporter le passeport (JSON)</button>'+
   '<button class="sec" onclick="exportMD()">Exporter le résumé (Markdown)</button></div>'+
   '<div class="card"><button class="red" onclick="deleteProject()">Supprimer ce projet</button>'+
-  '<div class="muted">Une sauvegarde est gardée avant suppression.</div></div>';
+  '<div class="muted">Une sauvegarde est gardée sur ce téléphone avant suppression.</div></div>';
 }
 
 /* ---------- Export / Import ---------- */
@@ -257,7 +339,7 @@ function importFile(input){
         S.projects.unshift(p);
       }
       p.log.unshift({date:now(),text:'Passeport importé'});
-      if(save()){alert('Import réussi.');render();}
+      if(save()){cloudPush(p);alert('Import réussi.');render();}
     }catch(e){alert('Import impossible : '+e.message);}
   };
   r.readAsText(f);
@@ -268,10 +350,53 @@ function deleteProject(){
   backup(p);
   S.projects=S.projects.filter(function(x){return x.id!==p.id;});
   save();
+  if(window.cloud&&cloud.user()){
+    cloud.remove(p.id).catch(function(e){setStatus('Suppression en ligne impossible : '+(e.code||e.message),true);});
+  }
   cur=null;
   render();
 }
 render();
+</script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,deleteDoc,collection,getDocs} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYCh24svQ3RHn2IllirQlpJmO0_P6ULc8",
+  authDomain: "nexamind-ai-1128b.firebaseapp.com",
+  projectId: "nexamind-ai-1128b",
+  storageBucket: "nexamind-ai-1128b.firebasestorage.app",
+  messagingSenderId: "800443052542",
+  appId: "1:800443052542:web:662eaebd12b0ff275fd0af"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.cloud = {
+  user: function(){ return auth.currentUser; },
+  login: function(e,p){ return signInWithEmailAndPassword(auth,e,p); },
+  signup: function(e,p){ return createUserWithEmailAndPassword(auth,e,p); },
+  logout: function(){ return signOut(auth); },
+  push: function(p){
+    return setDoc(doc(db,'users',auth.currentUser.uid,'projects',p.id),
+      {name:p.name,version:p.version,updatedAt:p.updatedAt,data:JSON.stringify(p)});
+  },
+  remove: function(id){
+    return deleteDoc(doc(db,'users',auth.currentUser.uid,'projects',id));
+  },
+  list: async function(){
+    const s = await getDocs(collection(db,'users',auth.currentUser.uid,'projects'));
+    return s.docs.map(function(d){ return d.data(); });
+  }
+};
+
+onAuthStateChanged(auth, function(){
+  if(window.onAuth) window.onAuth();
+});
 </script>
 </body>
   </html>
